@@ -1,11 +1,14 @@
 using Photon.Pun;
 using Photon.Realtime;
+using System;
 using UnityEngine;
 
 public class PhotonNetworkManager : MonoBehaviourPunCallbacks
 {
     [SerializeField] private MainMenuController mainMenuController;
     [SerializeField] private Blitz blitz;
+
+    public Action<Player> OnNewPlayerJoined;
 
     private void Start()
     {
@@ -48,5 +51,6 @@ public class PhotonNetworkManager : MonoBehaviourPunCallbacks
     public override void OnPlayerEnteredRoom(Player newPlayer)
     {
         Debug.Log("Player Entered Room" + newPlayer.NickName);
+        OnNewPlayerJoined?.Invoke(newPlayer);
     }
 }
