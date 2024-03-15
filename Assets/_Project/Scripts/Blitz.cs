@@ -1,9 +1,10 @@
+using Photon.Pun;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using static CardData;
 
-public class Blitz : MonoBehaviour
+public class Blitz : MonoBehaviourPun
 {
     public static Dictionary<Rank, int> CardRankToValueMap = new Dictionary<Rank, int>()
     {
@@ -21,6 +22,22 @@ public class Blitz : MonoBehaviour
         { Rank.Queen, 10 },
         { Rank.King, 10 }
     };
+    public static Dictionary<Rank, string> CardRankToShortRankMap = new Dictionary<Rank, string>()
+    {
+        { Rank.Ace, "A" },
+        { Rank.Two, "2" },
+        { Rank.Three, "3" },
+        { Rank.Four, "4" },
+        { Rank.Five, "5" },
+        { Rank.Six, "6" },
+        { Rank.Seven, "7" },
+        { Rank.Eight, "8" },
+        { Rank.Nine, "9" },
+        { Rank.Ten, "10" },
+        { Rank.Jack, "J" },
+        { Rank.Queen, "Q" },
+        { Rank.King, "K" }
+    };
     public static Dictionary<int, List<Transform>> playerCountToSpawnPointsMap = new Dictionary<int, List<Transform>>();
     public static string CARD_ROOT_FOLDER = "Cards/";
     public static string CARD_PREFIX = "card";
@@ -28,7 +45,6 @@ public class Blitz : MonoBehaviour
 
     public const int NUM_OF_CARDS_PER_PLAYER = 3;
 
-    public int playerCount = 0;
     public CardController cardPrefab;
     public Transform[] playerSpawnPoints;
     public Transform discardPileTransform;
@@ -90,24 +106,14 @@ public class Blitz : MonoBehaviour
         };
     }
 
-    public void SetupGame(int playerCount)
+    [PunRPC]
+    public void SetupGame(int seed)
     {
-        this.playerCount = playerCount;
         GenerateDeck();
-        Shuffle(deck, testSeed);
-        DealCards();
-        SetupDiscardPile();
-        PrintDeck();
-    }
-
-    private void OnEnable()
-    {
-        deckController.OnDeckClicked += DeckClicked;
-    }
-
-    private void OnDisable()
-    {
-        deckController.OnDeckClicked -= DeckClicked;
+        Shuffle(deck, seed);
+        //DealCards();
+        //SetupDiscardPile();
+        //PrintDeck();
     }
 
     private void GenerateDeck()
@@ -147,6 +153,7 @@ public class Blitz : MonoBehaviour
 
     private void DealCards()
     {
+        int playerCount = PhotonNetworkManager.GetPlayerCountInCurrentRoom();
         for (int i = 0; i < playerCount; i++)
         {
             for (int j = 0; j < NUM_OF_CARDS_PER_PLAYER; j++)
@@ -170,15 +177,15 @@ public class Blitz : MonoBehaviour
         return cardController;
     }
 
-    private CardData FetchCard()
+    public CardData FetchCard()
     {
         CardData cardData = deck[0];
         deck.RemoveAt(0);
         return cardData;
     }
 
-    private void DeckClicked()
+    public Sprite GetCardImage(CardData cardData)
     {
-        SpawnCard(playerCountToSpawnPointsMap[playerCount][0], NUM_OF_CARDS_PER_PLAYER);
+        return Resources.Load<Sprite>(CARD_ROOT_FOLDER + CARD_PREFIX + cardData.suit.ToString() + CardRankToShortRankMap[cardData.rank]);
     }
 }

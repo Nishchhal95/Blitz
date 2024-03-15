@@ -9,47 +9,95 @@ public class MainMenuController : MonoBehaviour
     [SerializeField] private TMP_InputField userNameInputField, roomNameInputField;
     [SerializeField] private Button joinRoomButton, createRoomButton;
     [SerializeField] private GameObject mainMenuPanel;
+    [SerializeField] private Button startGamButton;
+
+    [SerializeField] private GameController gameController;
+
+    private void Awake()
+    {
+        InitMenu();
+    }
 
     private void OnEnable()
     {
-        joinRoomButton.onClick.AddListener(JoinRoom);
+        PhotonNetworkManager.ConnectedToPhoton += OnConnectedToPhoton;
+        PhotonNetworkManager.JoinedRoom += OnJoinedRoom;
+        GameController.GameStarted += OnGameStarted;
         createRoomButton.onClick.AddListener(CreateRoom);
+        joinRoomButton.onClick.AddListener(JoinRoom);
+        startGamButton.onClick.AddListener(StartGame);
     }
     private void OnDisable()
     {
-        joinRoomButton.onClick.RemoveListener(JoinRoom);
+        PhotonNetworkManager.ConnectedToPhoton -= OnConnectedToPhoton;
+        PhotonNetworkManager.JoinedRoom -= OnJoinedRoom;
+        GameController.GameStarted -= OnGameStarted;
         createRoomButton.onClick.RemoveListener(CreateRoom);
+        joinRoomButton.onClick.RemoveListener(JoinRoom);
+        startGamButton.onClick.RemoveListener(StartGame);
     }
 
-    public void DisableMainMenu()
+    private void InitMenu()
+    {
+        createRoomButton.interactable = false;
+        joinRoomButton.interactable = false;
+        startGamButton.gameObject.SetActive(false);
+    }
+
+    private void OnConnectedToPhoton()
+    {
+        createRoomButton.interactable = true;
+        joinRoomButton.interactable = true;
+    }
+
+    private void OnJoinedRoom()
     {
         mainMenuPanel.SetActive(false);
+        if (PhotonNetworkManager.IsMasterClient())
+        {
+            startGamButton.gameObject.SetActive(true);
+        }
+    }
+
+    private void OnGameStarted()
+    {
+        startGamButton.gameObject.SetActive(false);
     }
 
     private void CreateRoom()
     {
-        SetPlayerName();
-        photonNetworkManager.CreateRoom();
+        if (TryCanSetPlayerName())
+        {
+            photonNetworkManager.CreateRoom();
+        }
     }
 
     private void JoinRoom()
     {
-        SetPlayerName();
-        string roomName = roomNameInputField.text.Trim();
-        if(string.IsNullOrEmpty(roomName))
+        if (TryCanSetPlayerName())
         {
-            return;
+            string roomName = roomNameInputField.text.Trim();
+            if (string.IsNullOrEmpty(roomName))
+            {
+                return;
+            }
+            photonNetworkManager.JoinRoom(roomName);
         }
-        photonNetworkManager.JoinRoom(roomName);
     }
 
-    private void SetPlayerName()
+    private void StartGame()
+    {
+        gameController.StartGame();
+    }
+
+    private bool TryCanSetPlayerName()
     {
         string playerName = userNameInputField.text.Trim();
         if(string.IsNullOrEmpty(playerName))
         {
-            return;
+            return false;
         }
         PhotonNetwork.LocalPlayer.NickName = playerName;
+        return true;
     }
 }
