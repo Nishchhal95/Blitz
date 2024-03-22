@@ -79,7 +79,7 @@ public class MainMenuController : MonoBehaviour
             string roomName = roomNameInputField.text.Trim();
             if (string.IsNullOrEmpty(roomName))
             {
-                return;
+                roomName = PhotonNetworkManager.TEST_ROOM_NAME;
             }
             photonNetworkManager.JoinRoom(roomName);
         }

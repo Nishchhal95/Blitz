@@ -5,24 +5,17 @@ public class GamePlayer : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI playerNameTextElement;
     [SerializeField] private SpriteRenderer[] cardSlots;
-    [SerializeField] private CardData[] cardDatas = new CardData[Blitz.NUM_OF_CARDS_PER_PLAYER];
+    [SerializeField] private GamePlayerData gamePlayerData = null;
 
-    public void SetPlayerName(string playerName)
+    public void Init(GamePlayerData gamePlayerData)
     {
-        playerNameTextElement.SetText(playerName);
+        this.gamePlayerData = gamePlayerData;
+        SetPlayerName(gamePlayerData.PlayerName);
     }
 
-    public void SetCardSlots(Sprite[] sprites)
+    private void SetPlayerName(string playerName)
     {
-        if(sprites.Length != cardSlots.Length)
-        {
-            return;
-        }
-
-        for (int i = 0; i < sprites.Length; i++)
-        {
-            SetCardSlot(i, sprites[i]);
-        }
+        playerNameTextElement.SetText(playerName);
     }
 
     public void SetCardSlot(int index, Sprite sprite)
@@ -32,6 +25,13 @@ public class GamePlayer : MonoBehaviour
 
     public void SetCardData(int index, CardData cardData)
     {
-        cardDatas[index] = cardData;
+        gamePlayerData.CardDatas[index] = cardData;
     }
+}
+
+public class GamePlayerData
+{
+    public string UserID;
+    public string PlayerName;
+    public CardData[] CardDatas = new CardData[Blitz.NUM_OF_CARDS_PER_PLAYER];
 }

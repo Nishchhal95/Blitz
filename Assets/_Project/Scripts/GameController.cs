@@ -14,18 +14,19 @@ public class GameController : MonoBehaviourPun
     [SerializeField] private Transform playerHolder;
     [SerializeField] private GamePlayer gamePlayerPrefab;
     [SerializeField] private SpawnPointData[] spawnPointsPositions;
+    [SerializeField] private int currentSpawnPointIndex = -1;
     [SerializeField] private Dictionary<string, GamePlayer> gamePlayersMap = new Dictionary<string, GamePlayer>();
     [SerializeField] private Dictionary<string, Player> photonPlayerMap = new Dictionary<string, Player>();
 
     private void OnEnable()
     {
-        PhotonNetworkManager.JoinedRoom += SpawnLocalPlayer;
+        PhotonNetworkManager.JoinedRoom += OnJoinedRoom;
         PhotonNetworkManager.PlayerEnteredRoom += SpawnGamePlayer;
     }
 
     private void OnDisable()
     {
-        PhotonNetworkManager.JoinedRoom -= SpawnLocalPlayer;
+        PhotonNetworkManager.JoinedRoom -= OnJoinedRoom;
         PhotonNetworkManager.PlayerEnteredRoom -= SpawnGamePlayer;
     }
 
@@ -52,14 +53,32 @@ public class GameController : MonoBehaviourPun
         }
     }
 
+    private void OnJoinedRoom()
+    {
+        SpawnLocalPlayer();
+        SpawnOtherPlayers();
+    }
+
     private void SpawnLocalPlayer()
     {
-        GamePlayer gamePlayer = Instantiate(gamePlayerPrefab, spawnPointsPositions[0].SpawnPoint, Quaternion.identity, playerHolder);
-        gamePlayer.SetPlayerName(PhotonNetworkManager.GetLocalPlayer().NickName);
-        gamePlayersMap.Add(PhotonNetworkManager.GetLocalPlayer().UserId, gamePlayer);
-        photonPlayerMap.Add(PhotonNetworkManager.GetLocalPlayer().UserId, PhotonNetworkManager.GetLocalPlayer());
-        spawnPointsPositions[0].IsOccupied = true;
+        currentSpawnPointIndex++;
+        SpawnPointData spawnPointData = spawnPointsPositions[currentSpawnPointIndex];
+        GamePlayer localGamePlayer = Instantiate(gamePlayerPrefab, spawnPointData.SpawnPoint, Quaternion.identity, playerHolder);
+        GamePlayerData gamePlayerData = new GamePlayerData()
+        {
+            UserID = PhotonNetworkManager.GetLocalPlayer().UserId,
+            PlayerName = PhotonNetworkManager.GetLocalPlayer().NickName
+        };
+        localGamePlayer.Init(gamePlayerData);
 
+        gamePlayersMap.Add(PhotonNetworkManager.GetLocalPlayer().UserId, localGamePlayer);
+        photonPlayerMap.Add(PhotonNetworkManager.GetLocalPlayer().UserId, PhotonNetworkManager.GetLocalPlayer());
+
+        spawnPointData.IsOccupied = true;
+    }
+
+    private void SpawnOtherPlayers()
+    {
         List<Player> players = PhotonNetworkManager.GetPlayerListInCurrentRoom();
         for (int i = 0; i < players.Count; i++)
         {
@@ -73,24 +92,20 @@ public class GameController : MonoBehaviourPun
 
     private void SpawnGamePlayer(Player player)
     {
-        SpawnPointData spawnPointData = spawnPointsPositions[GetNextAvailableSpawnPointIndex()];
+        currentSpawnPointIndex++;
+        SpawnPointData spawnPointData = spawnPointsPositions[currentSpawnPointIndex];
         GamePlayer gamePlayer = Instantiate(gamePlayerPrefab, spawnPointData.SpawnPoint, Quaternion.identity, playerHolder);
-        gamePlayer.SetPlayerName(player.NickName);
+        GamePlayerData gamePlayerData = new GamePlayerData()
+        {
+            UserID = player.UserId,
+            PlayerName = player.NickName
+        };
+        gamePlayer.Init(gamePlayerData);
+
         gamePlayersMap.Add(player.UserId, gamePlayer);
         photonPlayerMap.Add(player.UserId, player);
-        spawnPointData.IsOccupied = true;
-    }
 
-    private int GetNextAvailableSpawnPointIndex()
-    {
-        for (int i = 0; i < spawnPointsPositions.Length; i++)
-        {
-            if (!spawnPointsPositions[i].IsOccupied)
-            {
-                return i;
-            }
-        }
-        return -1;
+        spawnPointData.IsOccupied = true;
     }
 
     [PunRPC]
