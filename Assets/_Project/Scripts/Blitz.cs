@@ -43,6 +43,7 @@ public class Blitz : MonoBehaviourPun
     public static string CARD_PREFIX = "card";
     public static string CARD_BACK_FACE_NAME = "cardBack_red4";
 
+    public const int MAX_PLAYERS = 6;
     public const int NUM_OF_CARDS_PER_PLAYER = 3;
 
     public CardController cardPrefab;
@@ -182,10 +183,5 @@ public class Blitz : MonoBehaviourPun
         CardData cardData = deck[0];
         deck.RemoveAt(0);
         return cardData;
-    }
-
-    public Sprite GetCardImage(CardData cardData)
-    {
-        return Resources.Load<Sprite>(CARD_ROOT_FOLDER + CARD_PREFIX + cardData.suit.ToString() + CardRankToShortRankMap[cardData.rank]);
     }
 }

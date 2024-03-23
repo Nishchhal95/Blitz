@@ -12,6 +12,7 @@ public class PhotonNetworkManager : MonoBehaviourPunCallbacks
     public static Action JoinedLobby;
     public static Action RoomCreated;
     public static Action JoinedRoom;
+    public static Action LeftRoom;
     public static Action<Player> PlayerEnteredRoom;
     public static Action<Player> PlayerExitedRoom;
 
@@ -24,7 +25,7 @@ public class PhotonNetworkManager : MonoBehaviourPunCallbacks
     {
         RoomOptions roomOptions = new RoomOptions()
         {
-            MaxPlayers = 6,
+            MaxPlayers = Blitz.MAX_PLAYERS,
             PublishUserId = true
         };
 
@@ -47,6 +48,7 @@ public class PhotonNetworkManager : MonoBehaviourPunCallbacks
     public static Dictionary<int, Player> GetPlayersInCurrentRoom() => PhotonNetwork.CurrentRoom.Players;
 
     public static List<Player> GetPlayerListInCurrentRoom() => PhotonNetwork.CurrentRoom.Players.Values.ToList();
+    public static List<Player> GetPlayerListInCurrentRoomSortedByActorNumber() => PhotonNetwork.CurrentRoom.Players.Values.OrderBy(player => player.ActorNumber).ToList();
 
     //Callbacks
     public override void OnConnectedToMaster()
@@ -70,6 +72,12 @@ public class PhotonNetworkManager : MonoBehaviourPunCallbacks
     {
         Debug.Log("Room Joined " + PhotonNetwork.CurrentRoom.Name);
         JoinedRoom?.Invoke();
+    }
+
+    public override void OnLeftRoom()
+    {
+        Debug.Log("Room Left");
+        LeftRoom?.Invoke();
     }
 
     public override void OnPlayerEnteredRoom(Player newPlayer)

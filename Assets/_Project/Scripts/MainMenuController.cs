@@ -1,4 +1,6 @@
 using Photon.Pun;
+using Photon.Realtime;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,10 +10,19 @@ public class MainMenuController : MonoBehaviour
     [SerializeField] private PhotonNetworkManager photonNetworkManager;
     [SerializeField] private TMP_InputField userNameInputField, roomNameInputField;
     [SerializeField] private Button joinRoomButton, createRoomButton;
-    [SerializeField] private GameObject mainMenuPanel;
+    [SerializeField] private GameObject multiplayerConnectionHolder;
+    [SerializeField] private GameObject playerListHolder;
     [SerializeField] private Button startGamButton;
 
+    [SerializeField] private Transform menuPlayerListParent;
+    [SerializeField] private MenuPlayerItem menuPlayerItemPrefab;
+
     [SerializeField] private GameController gameController;
+
+    [SerializeField] private Canvas mainMenuCanvas;
+    [SerializeField] private Canvas gameCanvas;
+
+    private Dictionary<int, MenuPlayerItem> photonPlayerActorNumberToPlayerMap = new Dictionary<int, MenuPlayerItem>();
 
     private void Awake()
     {
@@ -22,6 +33,9 @@ public class MainMenuController : MonoBehaviour
     {
         PhotonNetworkManager.ConnectedToPhoton += OnConnectedToPhoton;
         PhotonNetworkManager.JoinedRoom += OnJoinedRoom;
+        PhotonNetworkManager.LeftRoom += OnLeftRoom;
+        PhotonNetworkManager.PlayerEnteredRoom += OnPlayerEnteredRoom;
+        PhotonNetworkManager.PlayerExitedRoom += OnPlayerExitedRoom;
         GameController.GameStarted += OnGameStarted;
         createRoomButton.onClick.AddListener(CreateRoom);
         joinRoomButton.onClick.AddListener(JoinRoom);
@@ -31,6 +45,9 @@ public class MainMenuController : MonoBehaviour
     {
         PhotonNetworkManager.ConnectedToPhoton -= OnConnectedToPhoton;
         PhotonNetworkManager.JoinedRoom -= OnJoinedRoom;
+        PhotonNetworkManager.LeftRoom -= OnLeftRoom;
+        PhotonNetworkManager.PlayerEnteredRoom -= OnPlayerEnteredRoom;
+        PhotonNetworkManager.PlayerExitedRoom -= OnPlayerExitedRoom;
         GameController.GameStarted -= OnGameStarted;
         createRoomButton.onClick.RemoveListener(CreateRoom);
         joinRoomButton.onClick.RemoveListener(JoinRoom);
@@ -42,6 +59,8 @@ public class MainMenuController : MonoBehaviour
         createRoomButton.interactable = false;
         joinRoomButton.interactable = false;
         startGamButton.gameObject.SetActive(false);
+        mainMenuCanvas.enabled = true;
+        gameCanvas.enabled = false;
     }
 
     private void OnConnectedToPhoton()
@@ -52,16 +71,44 @@ public class MainMenuController : MonoBehaviour
 
     private void OnJoinedRoom()
     {
-        mainMenuPanel.SetActive(false);
+        multiplayerConnectionHolder.SetActive(false);
+        playerListHolder.SetActive(true);
         if (PhotonNetworkManager.IsMasterClient())
         {
             startGamButton.gameObject.SetActive(true);
         }
+
+        List<Player> players = PhotonNetworkManager.GetPlayerListInCurrentRoom();
+        for (int i = 0; i < players.Count; i++)
+        {
+            AddPlayerToList(players[i]);
+        }
+    }
+
+    private void OnLeftRoom()
+    {
+        foreach (int actorNumber in photonPlayerActorNumberToPlayerMap.Keys)
+        {
+            RemovePlayerFromList(actorNumber);
+        }
+    }
+
+    private void OnPlayerEnteredRoom(Player player)
+    {
+        AddPlayerToList(player);
+    }
+
+    private void OnPlayerExitedRoom(Player player)
+    {
+        RemovePlayerFromList(player.ActorNumber);
     }
 
     private void OnGameStarted()
     {
         startGamButton.gameObject.SetActive(false);
+        playerListHolder.SetActive(false);
+        mainMenuCanvas.enabled = false;
+        gameCanvas.enabled = true;
     }
 
     private void CreateRoom()
@@ -99,5 +146,20 @@ public class MainMenuController : MonoBehaviour
         }
         PhotonNetwork.LocalPlayer.NickName = playerName;
         return true;
+    }
+
+    private void AddPlayerToList(Player player)
+    {
+        MenuPlayerItem menuPlayerItem = Instantiate(menuPlayerItemPrefab, menuPlayerListParent);
+        menuPlayerItem.Init(player.NickName);
+        photonPlayerActorNumberToPlayerMap.Add(player.ActorNumber, menuPlayerItem);
+    }
+
+    private void RemovePlayerFromList(int actorNumber)
+    {
+        if(photonPlayerActorNumberToPlayerMap.TryGetValue(actorNumber, out MenuPlayerItem menuPlayerItem))
+        {
+            Destroy(menuPlayerItem.gameObject);
+        }
     }
 }

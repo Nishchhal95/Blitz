@@ -11,24 +11,9 @@ public class GameController : MonoBehaviourPun
     public static Action GameStarted;
 
     [SerializeField] private Blitz blitz;
-    [SerializeField] private Transform playerHolder;
-    [SerializeField] private GamePlayer gamePlayerPrefab;
-    [SerializeField] private SpawnPointData[] spawnPointsPositions;
-    [SerializeField] private int currentSpawnPointIndex = -1;
-    [SerializeField] private Dictionary<string, GamePlayer> gamePlayersMap = new Dictionary<string, GamePlayer>();
-    [SerializeField] private Dictionary<string, Player> photonPlayerMap = new Dictionary<string, Player>();
-
-    private void OnEnable()
-    {
-        PhotonNetworkManager.JoinedRoom += OnJoinedRoom;
-        PhotonNetworkManager.PlayerEnteredRoom += SpawnGamePlayer;
-    }
-
-    private void OnDisable()
-    {
-        PhotonNetworkManager.JoinedRoom -= OnJoinedRoom;
-        PhotonNetworkManager.PlayerEnteredRoom -= SpawnGamePlayer;
-    }
+    [SerializeField] private GamePlayerUI gamePlayerUIPrefab;
+    [SerializeField] private PlayerCountToSpawnPoints[] playerCountToPlayerSlotsSetupMap = new PlayerCountToSpawnPoints[Blitz.MAX_PLAYERS];
+    [SerializeField] private Dictionary<int, GamePlayerUI> actorIDToGamePlayerUIMap = new Dictionary<int, GamePlayerUI>();
 
     public void StartGame()
     {
@@ -38,111 +23,108 @@ public class GameController : MonoBehaviourPun
             return;
         }
 
+        // Lock Room
+        PhotonNetworkManager.GetCurrentRoom().IsOpen = false;
+
+        photonView.RPC("StartGameForAll", RpcTarget.All);
+
+        // Generate and Shuffle Deck for all players
+        int randomSeed = UnityEngine.Random.Range(1, 99999);
+        blitz.GetComponent<PhotonView>().RPC("SetupGame", RpcTarget.All, randomSeed);
+
+        //Spawn Players for all players
+        photonView.RPC("SpawnPlayers", RpcTarget.All);
+    }
+
+    [PunRPC]
+    private void StartGameForAll()
+    {
         GameStarted?.Invoke();
-        blitz.GetComponent<PhotonView>().RPC("SetupGame", RpcTarget.All, 55);
+    }
 
-        photonView.RPC("GivePlayerCard", RpcTarget.All, PhotonNetworkManager.GetLocalPlayer().UserId, 0);
-
-        foreach (var photonPlayerUserID in photonPlayerMap.Keys)
+    [PunRPC]
+    private void SpawnPlayers()
+    {
+        int playerCount = PhotonNetworkManager.GetPlayerCountInCurrentRoom();
+        // This also gets you a sorted list at which the player joined.
+        List<Player> players = PhotonNetworkManager.GetPlayerListInCurrentRoomSortedByActorNumber();
+        foreach (Player player in players)
         {
-            if (photonPlayerUserID.Equals(PhotonNetworkManager.GetLocalPlayer().UserId))
+            Debug.Log($"NickName:{player.NickName}, UserID:{player.UserId}, ActorNumber:{player.ActorNumber}");
+        }
+
+        PlayerCountToSpawnPoints playerCountToSpawnPoints = null;
+        for (int i = 0; i < playerCountToPlayerSlotsSetupMap.Length; i++)
+        {
+            if (playerCountToPlayerSlotsSetupMap[i].Count == playerCount)
             {
-                continue;
+                playerCountToSpawnPoints = playerCountToPlayerSlotsSetupMap[i];
+                break;
             }
-            photonView.RPC("GivePlayerCard", RpcTarget.All, photonPlayerUserID, 0);
+        }
+
+        if(playerCountToSpawnPoints == null)
+        {
+            Debug.LogError("Cannot find SpawnPoint array for " + playerCount + " player count");
+            return;
+        }
+
+        int currentActorID = PhotonNetworkManager.GetLocalPlayer().ActorNumber;
+        for (int i = 0; i < playerCountToSpawnPoints.SpawnPoints.Length; i++)
+        {
+            Player currentPlayer = players[currentActorID - 1];
+            GamePlayerUI gamePlayerUI = SpawnGamePlayer(currentPlayer, playerCountToSpawnPoints.SpawnPoints[i]);
+            currentActorID++;
+            if (currentActorID > playerCount)
+            {
+                currentActorID = 1;
+            }
+        }
+
+        DistributeCards();
+    }
+
+    private void DistributeCards()
+    {
+        List<Player> players = PhotonNetworkManager.GetPlayerListInCurrentRoomSortedByActorNumber();
+
+        foreach (Player player in players)
+        {
+            CardData[] cardData = new CardData[3];
+            for (int j = 0; j < 3; j++)
+            {
+                cardData[j] = blitz.FetchCard();
+            }
+            actorIDToGamePlayerUIMap[player.ActorNumber].SetCardInfo(cardData);
         }
     }
 
-    private void OnJoinedRoom()
+    private GamePlayerUI SpawnGamePlayer(Player player, Transform parentTransform)
     {
-        SpawnLocalPlayer();
-        SpawnOtherPlayers();
-    }
+        GamePlayerUI gamePlayerUI = Instantiate(gamePlayerUIPrefab, Vector2.zero, Quaternion.identity, parentTransform);
+        gamePlayerUI.transform.localPosition = Vector2.zero;
+        gamePlayerUI.Init(player.NickName);
 
-    private void SpawnLocalPlayer()
-    {
-        currentSpawnPointIndex++;
-        SpawnPointData spawnPointData = spawnPointsPositions[currentSpawnPointIndex];
-        GamePlayer localGamePlayer = Instantiate(gamePlayerPrefab, spawnPointData.SpawnPoint, Quaternion.identity, playerHolder);
-        GamePlayerData gamePlayerData = new GamePlayerData()
-        {
-            UserID = PhotonNetworkManager.GetLocalPlayer().UserId,
-            PlayerName = PhotonNetworkManager.GetLocalPlayer().NickName
-        };
-        localGamePlayer.Init(gamePlayerData);
+        actorIDToGamePlayerUIMap.Add(player.ActorNumber, gamePlayerUI);
 
-        gamePlayersMap.Add(PhotonNetworkManager.GetLocalPlayer().UserId, localGamePlayer);
-        photonPlayerMap.Add(PhotonNetworkManager.GetLocalPlayer().UserId, PhotonNetworkManager.GetLocalPlayer());
-
-        spawnPointData.IsOccupied = true;
-    }
-
-    private void SpawnOtherPlayers()
-    {
-        List<Player> players = PhotonNetworkManager.GetPlayerListInCurrentRoom();
-        for (int i = 0; i < players.Count; i++)
-        {
-            if (players[i].IsLocal)
-            {
-                continue;
-            }
-            SpawnGamePlayer(players[i]);
-        }
-    }
-
-    private void SpawnGamePlayer(Player player)
-    {
-        currentSpawnPointIndex++;
-        SpawnPointData spawnPointData = spawnPointsPositions[currentSpawnPointIndex];
-        GamePlayer gamePlayer = Instantiate(gamePlayerPrefab, spawnPointData.SpawnPoint, Quaternion.identity, playerHolder);
-        GamePlayerData gamePlayerData = new GamePlayerData()
-        {
-            UserID = player.UserId,
-            PlayerName = player.NickName
-        };
-        gamePlayer.Init(gamePlayerData);
-
-        gamePlayersMap.Add(player.UserId, gamePlayer);
-        photonPlayerMap.Add(player.UserId, player);
-
-        spawnPointData.IsOccupied = true;
+        return gamePlayerUI;
     }
 
     [PunRPC]
     private void GivePlayerCard(string userID, int cardCount)
     {
-        if(cardCount == 0)
-        {
-            cardCount = Blitz.NUM_OF_CARDS_PER_PLAYER;
-        }
+        //if(cardCount == 0)
+        //{
+        //    cardCount = Blitz.NUM_OF_CARDS_PER_PLAYER;
+        //}
 
-        for (int i = 0; i < cardCount; i++)
-        {
-            CardData cardData = blitz.FetchCard();
-            GamePlayer gamePlayer = gamePlayersMap[userID];
-            gamePlayer.SetCardData(i, cardData);
-            gamePlayer.SetCardSlot(i, blitz.GetCardImage(cardData));
-        }
-    }
-
-    public Dictionary<string, Player> GetPhotonPlayerMap()
-    {
-        return photonPlayerMap;
-    }
-
-    public Dictionary<string, GamePlayer> GetGamePlayerMap()
-    {
-        return gamePlayersMap;
-    }
-
-    public Player GetPhotonPlayerByID(string id)
-    {
-        return photonPlayerMap[id];
-    }
-
-    public GamePlayer GetGamePlayerByID(string id)
-    {
-        return gamePlayersMap[id];
+        //for (int i = 0; i < cardCount; i++)
+        //{
+        //    CardData cardData = blitz.FetchCard();
+        //    GamePlayer gamePlayer = gamePlayersMap[userID];
+        //    gamePlayer.SetCardData(i, cardData);
+        //    gamePlayer.SetCardSlot(i, BlitzHelper.GetCardImage(cardData));
+        //}
     }
 }
 
@@ -151,4 +133,11 @@ public class SpawnPointData
 {
     public Vector2 SpawnPoint;
     public bool IsOccupied;
+}
+
+[Serializable]
+public class PlayerCountToSpawnPoints
+{
+    public int Count;
+    public Transform[] SpawnPoints;
 }
