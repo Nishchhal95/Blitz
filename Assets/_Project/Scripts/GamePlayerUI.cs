@@ -1,27 +1,92 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class GamePlayerUI : MonoBehaviour
 {
     [SerializeField] private string playerName;
-    [SerializeField] private CardData[] cards;
+    [SerializeField] private int playerScore;
+    [SerializeField] private int playerActorNumber;
+    [SerializeField] private List<CardData> cards = new List<CardData>(4);
     [SerializeField] private TextMeshProUGUI playerNameTextField;
-    [SerializeField] private Image[] cardImages;
+    [SerializeField] private TextMeshProUGUI playerScoreTextField;
+    [SerializeField] private List<CardControllerUI> cardControllers = new List<CardControllerUI>(4);
+    [SerializeField] private GameObject currentTurnIndicator;
 
-    public void Init(string playerName)
+    public Action<int, CardData> PlayerCardClicked;
+
+    public void Init(string playerName, int playerActorNumber)
     {
         this.playerName = playerName;
+        this.playerActorNumber = playerActorNumber;
         SetPlayerName(playerName);
+
+        for (int i = 0; i < cardControllers.Count; i++)
+        {
+            cardControllers[i].CardClicked += OnCardClicked;
+        }
     }
 
-    public void SetCardInfo(CardData[] cards)
+    private void OnDestroy()
+    {
+        for (int i = 0; i < cardControllers.Count; i++)
+        {
+            cardControllers[i].CardClicked -= OnCardClicked;
+        }
+    }
+
+    public void SetCardsInfo(List<CardData> cards)
     {
         this.cards = cards;
-        for (int i = 0; i < cards.Length; i++) 
+        for (int i = 0; i < cards.Count; i++) 
         {
-            UpdateCardImage(i, cards[i]);
+            cardControllers[i].SetCardData(cards[i]);
         }
+        CalculatePlayerScore();
+    }
+
+    public void SetCardInfo(CardData cardData)
+    {
+        cards.Add(cardData);
+        cardControllers[3].SetCardData(cardData);
+        CalculatePlayerScore();
+    }
+
+    public void TakeCard(int cardID)
+    {
+        for(int i = 0;i < cardControllers.Count;i++)
+        {
+            cardControllers[i].HideCard();
+        }
+        cards.RemoveAll(card => card.cardId == cardID);
+        SetCardsInfo(cards);
+        CalculatePlayerScore();
+    }
+
+    public CardData FindCardByID(int cardID)
+    {
+        return cards.Find(card => card.cardId.Equals(cardID));
+    }
+
+    public void SetCurrentTurnIndicator(bool toggle)
+    {
+        currentTurnIndicator.SetActive(toggle);
+    }
+
+    private void CalculatePlayerScore()
+    {
+        var maxSum = cards.GroupBy(card => card.suit).
+        Select(group => new
+        {
+            Suit = group.Key,
+            Sum = group.Sum(card => card.value)
+        }).
+        OrderByDescending(group => group.Sum).
+        FirstOrDefault();
+        playerScore = maxSum.Sum;
+        playerScoreTextField.SetText("" + playerScore);
     }
 
     private void SetPlayerName(string playerName)
@@ -29,8 +94,8 @@ public class GamePlayerUI : MonoBehaviour
         playerNameTextField.SetText(playerName);
     }
 
-    private void UpdateCardImage(int index, CardData cardData)
+    private void OnCardClicked(CardData cardData)
     {
-        cardImages[index].sprite = BlitzHelper.GetCardImage(cardData);
+        PlayerCardClicked?.Invoke(playerActorNumber, cardData);
     }
 }

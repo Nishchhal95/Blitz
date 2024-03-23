@@ -112,9 +112,6 @@ public class Blitz : MonoBehaviourPun
     {
         GenerateDeck();
         Shuffle(deck, seed);
-        //DealCards();
-        //SetupDiscardPile();
-        //PrintDeck();
     }
 
     private void GenerateDeck()

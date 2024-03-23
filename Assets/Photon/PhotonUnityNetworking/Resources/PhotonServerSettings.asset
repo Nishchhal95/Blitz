@@ -43,6 +43,9 @@ MonoBehaviour:
   - GivePlayerCard
   - SpawnPlayers
   - StartGameForAll
+  - FetchedNewCardFromDeck
+  - FetchedNewCardFromDiscardPile
+  - RemoveCardFromPlayer
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

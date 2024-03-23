@@ -15,6 +15,29 @@ public class GameController : MonoBehaviourPun
     [SerializeField] private PlayerCountToSpawnPoints[] playerCountToPlayerSlotsSetupMap = new PlayerCountToSpawnPoints[Blitz.MAX_PLAYERS];
     [SerializeField] private Dictionary<int, GamePlayerUI> actorIDToGamePlayerUIMap = new Dictionary<int, GamePlayerUI>();
 
+    [SerializeField] private DeckControllerUI deckControllerUI;
+    [SerializeField] private CardControllerUI cardPrefab;
+    [SerializeField] private CardControllerUI discardCardController;
+    [SerializeField] private Transform discardPileTransform;
+
+    [SerializeField] private int currentActorTurn = 1;
+    [SerializeField] private bool fetchedNewCard = false;
+
+    private void OnEnable()
+    {
+        deckControllerUI.DeckClicked += OnDeckClicked;
+    }
+
+    private void OnDisable()
+    {
+        deckControllerUI.DeckClicked -= OnDeckClicked;
+
+        if(discardCardController != null)
+        {
+            discardCardController.CardClicked -= OnDiscardPileClicked;
+        }
+    }
+
     public void StartGame()
     {
         int playersInRoom = PhotonNetworkManager.GetPlayerCountInCurrentRoom();
@@ -82,6 +105,9 @@ public class GameController : MonoBehaviourPun
         }
 
         DistributeCards();
+        SetupDeck();
+        SetupDiscardPile();
+        UpdateCurrentTurn();
     }
 
     private void DistributeCards()
@@ -90,42 +116,114 @@ public class GameController : MonoBehaviourPun
 
         foreach (Player player in players)
         {
-            CardData[] cardData = new CardData[3];
+            List<CardData> cardData = new List<CardData>(3);
             for (int j = 0; j < 3; j++)
             {
-                cardData[j] = blitz.FetchCard();
+                cardData.Add(blitz.FetchCard());
             }
-            actorIDToGamePlayerUIMap[player.ActorNumber].SetCardInfo(cardData);
+            actorIDToGamePlayerUIMap[player.ActorNumber].SetCardsInfo(cardData);
         }
+    }
+
+    private void SetupDeck()
+    {
+        deckControllerUI.gameObject.SetActive(true);
+    }
+
+    private void SetupDiscardPile()
+    {
+        CardData cardData = blitz.FetchCard();
+        discardCardController = Instantiate(cardPrefab, discardPileTransform);
+        discardCardController.transform.localPosition = Vector3.zero;
+        discardCardController.SetCardData(cardData);
+        discardCardController.CardClicked += OnDiscardPileClicked;
+    }
+
+    private void UpdateCurrentTurn()
+    {
+        actorIDToGamePlayerUIMap[currentActorTurn].SetCurrentTurnIndicator(true);
     }
 
     private GamePlayerUI SpawnGamePlayer(Player player, Transform parentTransform)
     {
         GamePlayerUI gamePlayerUI = Instantiate(gamePlayerUIPrefab, Vector2.zero, Quaternion.identity, parentTransform);
         gamePlayerUI.transform.localPosition = Vector2.zero;
-        gamePlayerUI.Init(player.NickName);
+        gamePlayerUI.Init(player.NickName, player.ActorNumber);
+        gamePlayerUI.PlayerCardClicked += OnPlayerCardClicked;
 
         actorIDToGamePlayerUIMap.Add(player.ActorNumber, gamePlayerUI);
 
         return gamePlayerUI;
     }
 
-    [PunRPC]
-    private void GivePlayerCard(string userID, int cardCount)
+    private void OnDeckClicked()
     {
-        //if(cardCount == 0)
-        //{
-        //    cardCount = Blitz.NUM_OF_CARDS_PER_PLAYER;
-        //}
-
-        //for (int i = 0; i < cardCount; i++)
-        //{
-        //    CardData cardData = blitz.FetchCard();
-        //    GamePlayer gamePlayer = gamePlayersMap[userID];
-        //    gamePlayer.SetCardData(i, cardData);
-        //    gamePlayer.SetCardSlot(i, BlitzHelper.GetCardImage(cardData));
-        //}
+        if(IsMyTurn && !fetchedNewCard)
+        {
+            photonView.RPC("FetchedNewCardFromDeck", RpcTarget.All);
+        }
     }
+
+    private void OnDiscardPileClicked(CardData cardData)
+    {
+        if (IsMyTurn && !fetchedNewCard)
+        {
+            photonView.RPC("FetchedNewCardFromDiscardPile", RpcTarget.All);
+        }
+    }
+
+    private void OnPlayerCardClicked(int actorNumber, CardData cardData)
+    {
+        if (!IsMyTurn || currentActorTurn != actorNumber || !fetchedNewCard)
+        {
+            return;
+        }
+
+        photonView.RPC("RemoveCardFromPlayer", RpcTarget.All, cardData.cardId);
+    }
+
+    [PunRPC]
+    private void FetchedNewCardFromDeck()
+    {
+        CardData cardData = blitz.FetchCard();
+        actorIDToGamePlayerUIMap[currentActorTurn].SetCardInfo(cardData);
+        fetchedNewCard = true;
+    }
+
+    [PunRPC]
+    private void FetchedNewCardFromDiscardPile()
+    {
+        CardData cardData = discardCardController.GetCardData();
+        discardCardController.HideCard();
+
+        actorIDToGamePlayerUIMap[currentActorTurn].SetCardInfo(cardData);
+        fetchedNewCard = true;
+    }
+
+    [PunRPC]
+    private void RemoveCardFromPlayer(int cardID)
+    {
+        CardData cardData = actorIDToGamePlayerUIMap[currentActorTurn].FindCardByID(cardID);
+        actorIDToGamePlayerUIMap[currentActorTurn].TakeCard(cardID);
+
+        discardCardController.SetCardData(cardData);
+
+        ResetTurn();
+    }
+
+    private void ResetTurn()
+    {
+        actorIDToGamePlayerUIMap[currentActorTurn].SetCurrentTurnIndicator(false);
+        currentActorTurn++;
+        if (currentActorTurn > PhotonNetworkManager.GetPlayerCountInCurrentRoom())
+        {
+            currentActorTurn = 1;
+        }
+        fetchedNewCard = false;
+        actorIDToGamePlayerUIMap[currentActorTurn].SetCurrentTurnIndicator(true);
+    }
+
+    private bool IsMyTurn => PhotonNetworkManager.GetLocalPlayer().ActorNumber == currentActorTurn;
 }
 
 [Serializable]
