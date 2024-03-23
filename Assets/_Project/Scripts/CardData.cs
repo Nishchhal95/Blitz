@@ -1,36 +1,4 @@
 using System;
-using UnityEngine;
-
-public class CardController : MonoBehaviour
-{
-    [SerializeField] public CardData cardData;
-    [SerializeField] public bool isFaceUp;
-    [SerializeField] private SpriteRenderer spriteRenderer;
-
-    public void Init(CardData cardData)
-    {
-        this.cardData = cardData;
-        FaceUp();
-    }
-
-    private void SetCardSprite(string cardName)
-    {
-        Sprite cardSprite = Resources.Load<Sprite>(Blitz.CARD_ROOT_FOLDER + cardName);
-        spriteRenderer.sprite = cardSprite;
-    }
-
-    public void FaceUp()
-    {
-        isFaceUp = true;
-        SetCardSprite(Blitz.CARD_PREFIX + cardData.cardName);
-    }
-
-    public void FaceDown()
-    {
-        isFaceUp = false;
-        SetCardSprite(Blitz.CARD_BACK_FACE_NAME);
-    }
-}
 
 [Serializable]
 public class CardData

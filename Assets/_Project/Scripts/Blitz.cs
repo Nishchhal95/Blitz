@@ -38,7 +38,6 @@ public class Blitz : MonoBehaviourPun
         { Rank.Queen, "Q" },
         { Rank.King, "K" }
     };
-    public static Dictionary<int, List<Transform>> playerCountToSpawnPointsMap = new Dictionary<int, List<Transform>>();
     public static string CARD_ROOT_FOLDER = "Cards/";
     public static string CARD_PREFIX = "card";
     public static string CARD_BACK_FACE_NAME = "cardBack_red4";
@@ -46,66 +45,7 @@ public class Blitz : MonoBehaviourPun
     public const int MAX_PLAYERS = 6;
     public const int NUM_OF_CARDS_PER_PLAYER = 3;
 
-    public CardController cardPrefab;
-    public Transform[] playerSpawnPoints;
-    public Transform discardPileTransform;
-    public Transform deckTransform;
-    public DeckController deckController;
-    public int testSeed;
-
     private List<CardData> deck = new List<CardData>();
-
-    private void Start()
-    {
-        playerCountToSpawnPointsMap = new Dictionary<int, List<Transform>>()
-        {
-            {1, new List<Transform>()
-                { 
-                    playerSpawnPoints[0] 
-                } 
-            },
-            {2, new List<Transform>()
-                { 
-                    playerSpawnPoints[0],
-                    playerSpawnPoints[3] 
-                } 
-            },
-            {3, new List<Transform>()
-                { 
-                    playerSpawnPoints[0], 
-                    playerSpawnPoints[3], 
-                    playerSpawnPoints[5] 
-                } 
-            },
-            {4, new List<Transform>()
-                { 
-                    playerSpawnPoints[0], 
-                    playerSpawnPoints[1], 
-                    playerSpawnPoints[2], 
-                    playerSpawnPoints[4] 
-                } 
-            },
-            {5, new List<Transform>()
-                { 
-                    playerSpawnPoints[0],
-                    playerSpawnPoints[1], 
-                    playerSpawnPoints[2], 
-                    playerSpawnPoints[3], 
-                    playerSpawnPoints[4] 
-                } 
-            },
-            {6, new List<Transform>()
-                { 
-                    playerSpawnPoints[0], 
-                    playerSpawnPoints[1], 
-                    playerSpawnPoints[2], 
-                    playerSpawnPoints[3], 
-                    playerSpawnPoints[4], 
-                    playerSpawnPoints[5] 
-                }
-            }
-        };
-    }
 
     [PunRPC]
     public void SetupGame(int seed)
@@ -147,32 +87,6 @@ public class Blitz : MonoBehaviourPun
         {
             Debug.Log(deck[i].cardName);
         }
-    }
-
-    private void DealCards()
-    {
-        int playerCount = PhotonNetworkManager.GetPlayerCountInCurrentRoom();
-        for (int i = 0; i < playerCount; i++)
-        {
-            for (int j = 0; j < NUM_OF_CARDS_PER_PLAYER; j++)
-            {
-                SpawnCard(playerCountToSpawnPointsMap[playerCount][i], j);
-            }
-        }
-    }
-
-    private void SetupDiscardPile()
-    {
-        SpawnCard(discardPileTransform, 0);
-    }
-
-    private CardController SpawnCard(Transform parent, int cardIndex)
-    {
-        Vector3 cardPos = parent.transform.position + new Vector3(cardIndex * .5f, 0, .1f * cardIndex);
-        CardController cardController = Instantiate(cardPrefab, cardPos, Quaternion.identity, parent);
-        cardController.Init(FetchCard());
-        cardController.transform.name = cardController.cardData.cardName;
-        return cardController;
     }
 
     public CardData FetchCard()

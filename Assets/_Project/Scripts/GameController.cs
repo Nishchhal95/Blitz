@@ -231,13 +231,6 @@ public class GameController : MonoBehaviourPun
 }
 
 [Serializable]
-public class SpawnPointData
-{
-    public Vector2 SpawnPoint;
-    public bool IsOccupied;
-}
-
-[Serializable]
 public class PlayerCountToSpawnPoints
 {
     public int Count;
