@@ -37,31 +37,31 @@ public class GamePlayerUI : MonoBehaviour
         }
     }
 
-    public void SetCardsInfo(List<CardData> cards)
+    public void SetCardsInfo(List<CardData> cards, bool isFaceDown = false)
     {
         this.cards = cards;
         for (int i = 0; i < cards.Count; i++) 
         {
-            cardControllers[i].SetCardData(cards[i]);
+            cardControllers[i].SetCardData(cards[i], isFaceDown);
         }
         CalculatePlayerScore();
     }
 
-    public void SetCardInfo(CardData cardData)
+    public void SetCardInfo(CardData cardData, bool isFaceDown = false)
     {
         cards.Add(cardData);
-        cardControllers[3].SetCardData(cardData);
+        cardControllers[3].SetCardData(cardData, isFaceDown);
         CalculatePlayerScore();
     }
 
-    public void TakeCard(int cardID)
+    public void TakeCard(int cardID, bool isFaceDown = false)
     {
         for(int i = 0;i < cardControllers.Count;i++)
         {
             cardControllers[i].HideCard();
         }
         cards.RemoveAll(card => card.cardId == cardID);
-        SetCardsInfo(cards);
+        SetCardsInfo(cards, isFaceDown);
         CalculatePlayerScore();
     }
 

@@ -121,7 +121,8 @@ public class GameController : MonoBehaviourPun
             {
                 cardData.Add(blitz.FetchCard());
             }
-            actorIDToGamePlayerUIMap[player.ActorNumber].SetCardsInfo(cardData);
+            actorIDToGamePlayerUIMap[player.ActorNumber].SetCardsInfo(cardData, 
+                PhotonNetworkManager.GetLocalPlayer().ActorNumber != player.ActorNumber);
         }
     }
 
@@ -186,7 +187,8 @@ public class GameController : MonoBehaviourPun
     private void FetchedNewCardFromDeck()
     {
         CardData cardData = blitz.FetchCard();
-        actorIDToGamePlayerUIMap[currentActorTurn].SetCardInfo(cardData);
+        actorIDToGamePlayerUIMap[currentActorTurn].SetCardInfo(cardData, 
+            PhotonNetworkManager.GetLocalPlayer().ActorNumber != currentActorTurn);
         fetchedNewCard = true;
     }
 
@@ -196,7 +198,8 @@ public class GameController : MonoBehaviourPun
         CardData cardData = discardCardController.GetCardData();
         discardCardController.HideCard();
 
-        actorIDToGamePlayerUIMap[currentActorTurn].SetCardInfo(cardData);
+        actorIDToGamePlayerUIMap[currentActorTurn].SetCardInfo(cardData, 
+            PhotonNetworkManager.GetLocalPlayer().ActorNumber != currentActorTurn);
         fetchedNewCard = true;
     }
 
@@ -204,7 +207,8 @@ public class GameController : MonoBehaviourPun
     private void RemoveCardFromPlayer(int cardID)
     {
         CardData cardData = actorIDToGamePlayerUIMap[currentActorTurn].FindCardByID(cardID);
-        actorIDToGamePlayerUIMap[currentActorTurn].TakeCard(cardID);
+        actorIDToGamePlayerUIMap[currentActorTurn].TakeCard(cardID, 
+            PhotonNetworkManager.GetLocalPlayer().ActorNumber != currentActorTurn);
 
         discardCardController.SetCardData(cardData);
 
