@@ -68,6 +68,31 @@ public class GameController : MonoBehaviourPun
     [PunRPC]
     private void StartGameForAll()
     {
+        if(actorIDToGamePlayerUIMap != null)
+        {
+            foreach (GamePlayerUI gamePlayer in actorIDToGamePlayerUIMap.Values)
+            {
+                Destroy(gamePlayer.gameObject);
+            }
+        }
+        actorIDToGamePlayerUIMap = new Dictionary<int, GamePlayerUI>();
+
+        if(discardCardController != null)
+        {
+            Destroy(discardCardController.gameObject);
+        }
+        discardCardController = null;
+
+        gameOver = false;
+        currentActorTurn = 1;
+        fetchedNewCard = false;
+
+        playerKnocked = false;
+        knockedPlayerActorNumber = -1;
+        turnEndActorNumber = -1;
+
+        GameUIController.Instance.HideGameOver();
+
         GameStarted?.Invoke();
     }
 
@@ -295,8 +320,8 @@ public class GameController : MonoBehaviourPun
         Debug.Log($"Blitzing!!");
         gameOver = true;
         Debug.Log($"Player {actorIDToGamePlayerUIMap[currentActorTurn].GetName()} got BLITZ!");
-        InGameMessageController.Instance.ShowMessage($"Player {actorIDToGamePlayerUIMap[currentActorTurn].GetName()} got BLITZ!");
         ShowAllPlayerCards();
+        GameUIController.Instance.ShowGameOver($"Player {actorIDToGamePlayerUIMap[currentActorTurn].GetName()} got BLITZ!", PhotonNetworkManager.IsMasterClient());
     }
 
     private void HandleKnock()
@@ -324,9 +349,13 @@ public class GameController : MonoBehaviourPun
         }
 
         Debug.Log($"Player {maxScoreGamePlayer.GetName()} has highest score of {maxScoreGamePlayer.GetScore()}!");
-        Debug.Log($"Player {lowestScoreGamePlayer.GetName()} has highest score of {lowestScoreGamePlayer.GetScore()}!");
+        Debug.Log($"Player {lowestScoreGamePlayer.GetName()} has lowest score of {lowestScoreGamePlayer.GetScore()}!");
+
+        string message = $"Player {maxScoreGamePlayer.GetName()} has highest score of {maxScoreGamePlayer.GetScore()}! " +
+            $"\n Player {lowestScoreGamePlayer.GetName()} has highest score of {lowestScoreGamePlayer.GetScore()}!";
         gameOver = true;
         ShowAllPlayerCards();
+        GameUIController.Instance.ShowGameOver(message, PhotonNetworkManager.IsMasterClient());
     }
 
     private void ShowAllPlayerCards()
