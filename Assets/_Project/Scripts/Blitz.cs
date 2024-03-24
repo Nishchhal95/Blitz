@@ -50,6 +50,7 @@ public class Blitz : MonoBehaviourPun
     [PunRPC]
     public void SetupGame(int seed)
     {
+        deck = new List<CardData>();
         GenerateDeck();
         Shuffle(deck, seed);
     }
