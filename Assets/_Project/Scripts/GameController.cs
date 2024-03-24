@@ -166,7 +166,7 @@ public class GameController : MonoBehaviourPun
 
     private void OnDeckClicked()
     {
-        if(IsMyTurn && !fetchedNewCard)
+        if(!gameOver && IsMyTurn && !fetchedNewCard)
         {
             photonView.RPC("FetchedNewCardFromDeck", RpcTarget.All);
         }
@@ -174,7 +174,7 @@ public class GameController : MonoBehaviourPun
 
     private void OnDiscardPileClicked(CardData cardData)
     {
-        if (IsMyTurn && !fetchedNewCard)
+        if (!gameOver && IsMyTurn && !fetchedNewCard)
         {
             photonView.RPC("FetchedNewCardFromDiscardPile", RpcTarget.All);
         }
@@ -182,7 +182,7 @@ public class GameController : MonoBehaviourPun
 
     private void OnPlayerCardClicked(int actorNumber, CardData cardData)
     {
-        if (!IsMyTurn || currentActorTurn != actorNumber || !fetchedNewCard)
+        if (gameOver || !IsMyTurn || currentActorTurn != actorNumber || !fetchedNewCard)
         {
             return;
         }
@@ -192,7 +192,7 @@ public class GameController : MonoBehaviourPun
 
     private void OnPlayerKnockClicked(int actorNumber)
     {
-        if (!IsMyTurn || currentActorTurn != actorNumber)
+        if (gameOver && !IsMyTurn || currentActorTurn != actorNumber)
         {
             return;
         }
@@ -202,13 +202,22 @@ public class GameController : MonoBehaviourPun
             return;
         }
 
+        photonView.RPC("PlayerKnockForAll", RpcTarget.All, actorNumber);
+    }
+
+    [PunRPC]
+    private void PlayerKnockForAll(int actorNumber)
+    {
         playerKnocked = true;
         knockedPlayerActorNumber = actorNumber;
         turnEndActorNumber = actorNumber - 1;
-        if(turnEndActorNumber <= 0)
+        if (turnEndActorNumber <= 0)
         {
             turnEndActorNumber = PhotonNetworkManager.GetPlayerCountInCurrentRoom();
         }
+
+        InGameMessageController.Instance.ShowMessage($"Player {actorIDToGamePlayerUIMap[actorNumber].GetName()} KNOCKED! " +
+            $"Game will end after {actorIDToGamePlayerUIMap[turnEndActorNumber].GetName()} turn");
     }
 
     [PunRPC]
@@ -240,22 +249,25 @@ public class GameController : MonoBehaviourPun
 
         discardCardController.SetCardData(cardData);
 
-        ResetTurn();
+        EndTurn();
     }
 
-    private void ResetTurn()
+    private void EndTurn()
     {
         if (gameOver)
         {
             return;
         }
-        if(IsBlitz())
+        CheckGameOver();
+        if (gameOver)
         {
-            gameOver = true;
-            Debug.Log($"Player {actorIDToGamePlayerUIMap[currentActorTurn].GetName()} got BLITZ!");
-            ShowAllPlayerCards();
             return;
         }
+        NextTurn();
+    }
+
+    private void NextTurn()
+    {
         actorIDToGamePlayerUIMap[currentActorTurn].SetCurrentTurnIndicator(false);
         currentActorTurn++;
         if (currentActorTurn > PhotonNetworkManager.GetPlayerCountInCurrentRoom())
@@ -264,12 +276,57 @@ public class GameController : MonoBehaviourPun
         }
         fetchedNewCard = false;
         actorIDToGamePlayerUIMap[currentActorTurn].SetCurrentTurnIndicator(true);
+    }
 
-        if (IsKnock() && currentActorTurn == turnEndActorNumber)
+    private void CheckGameOver()
+    {
+        if (IsBlitz())
         {
-            gameOver = true;
-            ShowAllPlayerCards();
+            HandleBlitz();
         }
+        else if (IsKnock() && currentActorTurn == turnEndActorNumber)
+        {
+            HandleKnock();
+        }
+    }
+
+    private void HandleBlitz()
+    {
+        Debug.Log($"Blitzing!!");
+        gameOver = true;
+        Debug.Log($"Player {actorIDToGamePlayerUIMap[currentActorTurn].GetName()} got BLITZ!");
+        InGameMessageController.Instance.ShowMessage($"Player {actorIDToGamePlayerUIMap[currentActorTurn].GetName()} got BLITZ!");
+        ShowAllPlayerCards();
+    }
+
+    private void HandleKnock()
+    {
+        Debug.Log($"Knocking!!");
+        int maxScore = 0;
+        GamePlayerUI maxScoreGamePlayer = null;
+
+        int lowestScore = int.MaxValue;
+        GamePlayerUI lowestScoreGamePlayer = null;
+        foreach (GamePlayerUI gamePlayerUI in actorIDToGamePlayerUIMap.Values)
+        {
+            int playerScore = gamePlayerUI.GetScore();
+            if (playerScore > maxScore)
+            {
+                maxScore = playerScore;
+                maxScoreGamePlayer = gamePlayerUI;
+            }
+
+            if (playerScore < lowestScore)
+            {
+                lowestScore = playerScore;
+                lowestScoreGamePlayer = gamePlayerUI;
+            }
+        }
+
+        Debug.Log($"Player {maxScoreGamePlayer.GetName()} has highest score of {maxScoreGamePlayer.GetScore()}!");
+        Debug.Log($"Player {lowestScoreGamePlayer.GetName()} has highest score of {lowestScoreGamePlayer.GetScore()}!");
+        gameOver = true;
+        ShowAllPlayerCards();
     }
 
     private void ShowAllPlayerCards()
