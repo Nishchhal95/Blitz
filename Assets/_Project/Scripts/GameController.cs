@@ -352,7 +352,7 @@ public class GameController : MonoBehaviourPun
         Debug.Log($"Player {lowestScoreGamePlayer.GetName()} has lowest score of {lowestScoreGamePlayer.GetScore()}!");
 
         string message = $"Player {maxScoreGamePlayer.GetName()} has highest score of {maxScoreGamePlayer.GetScore()}! " +
-            $"\n Player {lowestScoreGamePlayer.GetName()} has highest score of {lowestScoreGamePlayer.GetScore()}!";
+            $"\n Player {lowestScoreGamePlayer.GetName()} has lowest score of {lowestScoreGamePlayer.GetScore()}!";
         gameOver = true;
         ShowAllPlayerCards();
         GameUIController.Instance.ShowGameOver(message, PhotonNetworkManager.IsMasterClient());
