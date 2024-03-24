@@ -23,6 +23,12 @@ public class GameController : MonoBehaviourPun
     [SerializeField] private int currentActorTurn = 1;
     [SerializeField] private bool fetchedNewCard = false;
 
+    [SerializeField] private bool playerKnocked = false;
+    [SerializeField] private int knockedPlayerActorNumber = -1;
+    [SerializeField] private int turnEndActorNumber = -1;
+
+    [SerializeField] private bool gameOver = false;
+
     private void OnEnable()
     {
         deckControllerUI.DeckClicked += OnDeckClicked;
@@ -151,6 +157,7 @@ public class GameController : MonoBehaviourPun
         gamePlayerUI.transform.localPosition = Vector2.zero;
         gamePlayerUI.Init(player.NickName, player.ActorNumber);
         gamePlayerUI.PlayerCardClicked += OnPlayerCardClicked;
+        gamePlayerUI.PlayerKnockClicked += OnPlayerKnockClicked;
 
         actorIDToGamePlayerUIMap.Add(player.ActorNumber, gamePlayerUI);
 
@@ -181,6 +188,27 @@ public class GameController : MonoBehaviourPun
         }
 
         photonView.RPC("RemoveCardFromPlayer", RpcTarget.All, cardData.cardId);
+    }
+
+    private void OnPlayerKnockClicked(int actorNumber)
+    {
+        if (!IsMyTurn || currentActorTurn != actorNumber)
+        {
+            return;
+        }
+
+        if (playerKnocked)
+        {
+            return;
+        }
+
+        playerKnocked = true;
+        knockedPlayerActorNumber = actorNumber;
+        turnEndActorNumber = actorNumber - 1;
+        if(turnEndActorNumber <= 0)
+        {
+            turnEndActorNumber = PhotonNetworkManager.GetPlayerCountInCurrentRoom();
+        }
     }
 
     [PunRPC]
@@ -217,6 +245,17 @@ public class GameController : MonoBehaviourPun
 
     private void ResetTurn()
     {
+        if (gameOver)
+        {
+            return;
+        }
+        if(IsBlitz())
+        {
+            gameOver = true;
+            Debug.Log($"Player {actorIDToGamePlayerUIMap[currentActorTurn].GetName()} got BLITZ!");
+            ShowAllPlayerCards();
+            return;
+        }
         actorIDToGamePlayerUIMap[currentActorTurn].SetCurrentTurnIndicator(false);
         currentActorTurn++;
         if (currentActorTurn > PhotonNetworkManager.GetPlayerCountInCurrentRoom())
@@ -225,6 +264,30 @@ public class GameController : MonoBehaviourPun
         }
         fetchedNewCard = false;
         actorIDToGamePlayerUIMap[currentActorTurn].SetCurrentTurnIndicator(true);
+
+        if (IsKnock() && currentActorTurn == turnEndActorNumber)
+        {
+            gameOver = true;
+            ShowAllPlayerCards();
+        }
+    }
+
+    private void ShowAllPlayerCards()
+    {
+        foreach (GamePlayerUI gamePlayerUI in actorIDToGamePlayerUIMap.Values)
+        {
+            gamePlayerUI.SetCardsInfo(gamePlayerUI.GetCards());
+        }
+    }
+
+    private bool IsKnock()
+    {
+        return playerKnocked && knockedPlayerActorNumber != -1 && turnEndActorNumber != -1;
+    }
+
+    private bool IsBlitz()
+    {
+        return actorIDToGamePlayerUIMap[currentActorTurn].GetScore() == 31;
     }
 
     private bool IsMyTurn => PhotonNetworkManager.GetLocalPlayer().ActorNumber == currentActorTurn;

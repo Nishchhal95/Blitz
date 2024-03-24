@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class GamePlayerUI : MonoBehaviour
 {
@@ -14,14 +15,29 @@ public class GamePlayerUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI playerScoreTextField;
     [SerializeField] private List<CardControllerUI> cardControllers = new List<CardControllerUI>(4);
     [SerializeField] private GameObject currentTurnIndicator;
+    [SerializeField] private Button knockButton;
 
     public Action<int, CardData> PlayerCardClicked;
+    public Action<int> PlayerKnockClicked;
+
+
+    private void OnEnable()
+    {
+        knockButton.onClick.AddListener(OnKnockClicked);
+    }
+
+    private void OnDisable()
+    {
+        knockButton.onClick.RemoveListener(OnKnockClicked);
+    }
 
     public void Init(string playerName, int playerActorNumber)
     {
         this.playerName = playerName;
         this.playerActorNumber = playerActorNumber;
         SetPlayerName(playerName);
+
+        knockButton.gameObject.SetActive(playerActorNumber == PhotonNetworkManager.GetLocalPlayer().ActorNumber);
 
         for (int i = 0; i < cardControllers.Count; i++)
         {
@@ -75,6 +91,22 @@ public class GamePlayerUI : MonoBehaviour
         currentTurnIndicator.SetActive(toggle);
     }
 
+    public int GetScore()
+    {
+        CalculatePlayerScore();
+        return playerScore;
+    }
+
+    public string GetName()
+    {
+        return playerName;
+    }
+
+    public List<CardData> GetCards()
+    {
+        return cards;
+    }
+
     private void CalculatePlayerScore()
     {
         var maxSum = cards.GroupBy(card => card.suit).
@@ -97,5 +129,10 @@ public class GamePlayerUI : MonoBehaviour
     private void OnCardClicked(CardData cardData)
     {
         PlayerCardClicked?.Invoke(playerActorNumber, cardData);
+    }
+
+    private void OnKnockClicked()
+    {
+        PlayerKnockClicked?.Invoke(playerActorNumber);
     }
 }
