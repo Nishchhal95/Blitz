@@ -35,14 +35,24 @@ public class CardControllerUI : MonoBehaviour, IPointerClickHandler, IPointerEnt
         return cardData;
     }
 
+    public void FaceDown()
+    {
+        image.sprite = BlitzHelper.GetFaceDownImage();
+    }
+
+    public void FaceUp() 
+    {
+        image.sprite = BlitzHelper.GetCardImage(cardData);
+    }
+
     private void SetCardImage()
     {
         if(isFaceDown)
         {
-            image.sprite = BlitzHelper.GetFaceDownImage();
+            FaceDown();
             return;
         }
-        image.sprite = BlitzHelper.GetCardImage(cardData);
+        FaceUp();
     }
 
     public void OnPointerClick(PointerEventData eventData)

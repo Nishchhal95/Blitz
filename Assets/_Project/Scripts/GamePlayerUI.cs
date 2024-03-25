@@ -10,6 +10,7 @@ public class GamePlayerUI : MonoBehaviour
     [SerializeField] private string playerName;
     [SerializeField] private float playerScore;
     [SerializeField] private int playerActorNumber;
+    [SerializeField] private bool isLocalPlayer;
     [SerializeField] private List<CardData> cards = new List<CardData>(4);
     [SerializeField] private TextMeshProUGUI playerNameTextField;
     [SerializeField] private TextMeshProUGUI playerScoreTextField;
@@ -24,11 +25,13 @@ public class GamePlayerUI : MonoBehaviour
     private void OnEnable()
     {
         knockButton.onClick.AddListener(OnKnockClicked);
+        GameController.DebugPressed += DebugPressed;
     }
 
     private void OnDisable()
     {
         knockButton.onClick.RemoveListener(OnKnockClicked);
+        GameController.DebugPressed -= DebugPressed;
     }
 
     public void Init(string playerName, int playerActorNumber)
@@ -36,8 +39,10 @@ public class GamePlayerUI : MonoBehaviour
         this.playerName = playerName;
         this.playerActorNumber = playerActorNumber;
         SetPlayerName(playerName);
+        isLocalPlayer = playerActorNumber == PhotonNetworkManager.GetLocalPlayer().ActorNumber;
+        playerScoreTextField.gameObject.SetActive(isLocalPlayer);
 
-        knockButton.gameObject.SetActive(playerActorNumber == PhotonNetworkManager.GetLocalPlayer().ActorNumber);
+        knockButton.gameObject.SetActive(isLocalPlayer);
 
         for (int i = 0; i < cardControllers.Count; i++)
         {
@@ -140,5 +145,28 @@ public class GamePlayerUI : MonoBehaviour
     private void OnKnockClicked()
     {
         PlayerKnockClicked?.Invoke(playerActorNumber);
+    }
+
+    private void DebugPressed()
+    {
+        if (isLocalPlayer)
+        {
+            return;
+        }
+        playerScoreTextField.gameObject.SetActive(GameController.IS_DEBUG);
+        foreach(CardControllerUI cardController in cardControllers)
+        {
+            if(cardController != null && cardController.GetCardData() != null)
+            {
+                if (GameController.IS_DEBUG)
+                {
+                    cardController.FaceUp();
+                }
+                else
+                {
+                    cardController.FaceDown();
+                }
+            }
+        }
     }
 }

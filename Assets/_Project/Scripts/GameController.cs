@@ -6,8 +6,13 @@ using UnityEngine;
 
 public class GameController : MonoBehaviourPun
 {
+    private static bool isDebug;
+
     public static int MINIMUM_PLAYERS_TO_START_GAME = 0;
     public static int MAX_PLAYERS = 6;
+    public static bool IS_DEBUG { get { return isDebug; } set { isDebug = value; DebugPressed?.Invoke(); } }
+
+    public static event Action DebugPressed;
     public static Action GameStarted;
 
     [SerializeField] private Blitz blitz;
