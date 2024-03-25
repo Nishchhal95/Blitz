@@ -327,14 +327,14 @@ public class GameController : MonoBehaviourPun
     private void HandleKnock()
     {
         Debug.Log($"Knocking!!");
-        int maxScore = 0;
+        float maxScore = 0;
         GamePlayerUI maxScoreGamePlayer = null;
 
-        int lowestScore = int.MaxValue;
+        float lowestScore = int.MaxValue;
         GamePlayerUI lowestScoreGamePlayer = null;
         foreach (GamePlayerUI gamePlayerUI in actorIDToGamePlayerUIMap.Values)
         {
-            int playerScore = gamePlayerUI.GetScore();
+            float playerScore = gamePlayerUI.GetScore();
             if (playerScore > maxScore)
             {
                 maxScore = playerScore;

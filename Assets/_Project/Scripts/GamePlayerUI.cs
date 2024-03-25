@@ -8,7 +8,7 @@ using UnityEngine.UI;
 public class GamePlayerUI : MonoBehaviour
 {
     [SerializeField] private string playerName;
-    [SerializeField] private int playerScore;
+    [SerializeField] private float playerScore;
     [SerializeField] private int playerActorNumber;
     [SerializeField] private List<CardData> cards = new List<CardData>(4);
     [SerializeField] private TextMeshProUGUI playerNameTextField;
@@ -91,7 +91,7 @@ public class GamePlayerUI : MonoBehaviour
         currentTurnIndicator.SetActive(toggle);
     }
 
-    public int GetScore()
+    public float GetScore()
     {
         CalculatePlayerScore();
         return playerScore;
@@ -117,7 +117,13 @@ public class GamePlayerUI : MonoBehaviour
         }).
         OrderByDescending(group => group.Sum).
         FirstOrDefault();
-        playerScore = maxSum.Sum;
+
+        bool hasSimilarRank3Cards = cards.GroupBy(card => card.rank).Any(group => group.Count() >= 3);
+        if(hasSimilarRank3Cards)
+        {
+            playerScore = 30.5f;
+        }
+        playerScore = Mathf.Max(playerScore, maxSum.Sum);
         playerScoreTextField.SetText("" + playerScore);
     }
 
