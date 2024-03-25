@@ -8,8 +8,9 @@ using UnityEngine.UI;
 public class GamePlayerUI : MonoBehaviour
 {
     [SerializeField] private string playerName;
-    [SerializeField] private int playerScore;
+    [SerializeField] private float playerScore;
     [SerializeField] private int playerActorNumber;
+    [SerializeField] private bool isLocalPlayer;
     [SerializeField] private List<CardData> cards = new List<CardData>(4);
     [SerializeField] private TextMeshProUGUI playerNameTextField;
     [SerializeField] private TextMeshProUGUI playerScoreTextField;
@@ -24,11 +25,13 @@ public class GamePlayerUI : MonoBehaviour
     private void OnEnable()
     {
         knockButton.onClick.AddListener(OnKnockClicked);
+        GameController.DebugPressed += DebugPressed;
     }
 
     private void OnDisable()
     {
         knockButton.onClick.RemoveListener(OnKnockClicked);
+        GameController.DebugPressed -= DebugPressed;
     }
 
     public void Init(string playerName, int playerActorNumber)
@@ -36,8 +39,10 @@ public class GamePlayerUI : MonoBehaviour
         this.playerName = playerName;
         this.playerActorNumber = playerActorNumber;
         SetPlayerName(playerName);
+        isLocalPlayer = playerActorNumber == PhotonNetworkManager.GetLocalPlayer().ActorNumber;
+        playerScoreTextField.gameObject.SetActive(isLocalPlayer);
 
-        knockButton.gameObject.SetActive(playerActorNumber == PhotonNetworkManager.GetLocalPlayer().ActorNumber);
+        knockButton.gameObject.SetActive(isLocalPlayer);
 
         for (int i = 0; i < cardControllers.Count; i++)
         {
@@ -67,17 +72,20 @@ public class GamePlayerUI : MonoBehaviour
     {
         cards.Add(cardData);
         cardControllers[3].SetCardData(cardData, isFaceDown);
+        cardControllers[3].gameObject.SetActive(true);
         CalculatePlayerScore();
     }
 
     public void TakeCard(int cardID, bool isFaceDown = false)
     {
-        for(int i = 0;i < cardControllers.Count;i++)
-        {
-            cardControllers[i].HideCard();
-        }
+        //Remove card
         cards.RemoveAll(card => card.cardId == cardID);
         SetCardsInfo(cards, isFaceDown);
+
+        //Hide Last Card
+        cardControllers[3].HideCard();
+        cardControllers[3].gameObject.SetActive(false);
+
         CalculatePlayerScore();
     }
 
@@ -91,7 +99,7 @@ public class GamePlayerUI : MonoBehaviour
         currentTurnIndicator.SetActive(toggle);
     }
 
-    public int GetScore()
+    public float GetScore()
     {
         CalculatePlayerScore();
         return playerScore;
@@ -117,7 +125,13 @@ public class GamePlayerUI : MonoBehaviour
         }).
         OrderByDescending(group => group.Sum).
         FirstOrDefault();
-        playerScore = maxSum.Sum;
+
+        bool hasSimilarRank3Cards = cards.GroupBy(card => card.rank).Any(group => group.Count() >= 3);
+        if(hasSimilarRank3Cards)
+        {
+            playerScore = 30.5f;
+        }
+        playerScore = Mathf.Max(playerScore, maxSum.Sum);
         playerScoreTextField.SetText("" + playerScore);
     }
 
@@ -134,5 +148,28 @@ public class GamePlayerUI : MonoBehaviour
     private void OnKnockClicked()
     {
         PlayerKnockClicked?.Invoke(playerActorNumber);
+    }
+
+    private void DebugPressed()
+    {
+        if (isLocalPlayer)
+        {
+            return;
+        }
+        playerScoreTextField.gameObject.SetActive(GameController.IS_DEBUG);
+        foreach(CardControllerUI cardController in cardControllers)
+        {
+            if(cardController != null && cardController.GetCardData() != null)
+            {
+                if (GameController.IS_DEBUG)
+                {
+                    cardController.FaceUp();
+                }
+                else
+                {
+                    cardController.FaceDown();
+                }
+            }
+        }
     }
 }

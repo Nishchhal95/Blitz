@@ -13,6 +13,7 @@ public class MainMenuController : MonoBehaviour
     [SerializeField] private GameObject multiplayerConnectionHolder;
     [SerializeField] private GameObject playerListHolder;
     [SerializeField] private Button startGamButton;
+    [SerializeField] private Button debugButton;
 
     [SerializeField] private Transform menuPlayerListParent;
     [SerializeField] private MenuPlayerItem menuPlayerItemPrefab;
@@ -40,6 +41,7 @@ public class MainMenuController : MonoBehaviour
         createRoomButton.onClick.AddListener(CreateRoom);
         joinRoomButton.onClick.AddListener(JoinRoom);
         startGamButton.onClick.AddListener(StartGame);
+        debugButton.onClick.AddListener(DebugPressed);
     }
     private void OnDisable()
     {
@@ -52,6 +54,7 @@ public class MainMenuController : MonoBehaviour
         createRoomButton.onClick.RemoveListener(CreateRoom);
         joinRoomButton.onClick.RemoveListener(JoinRoom);
         startGamButton.onClick.RemoveListener(StartGame);
+        debugButton.onClick.RemoveListener(DebugPressed);
     }
 
     private void InitMenu()
@@ -135,6 +138,15 @@ public class MainMenuController : MonoBehaviour
     private void StartGame()
     {
         gameController.StartGame();
+        if (PhotonNetworkManager.IsMasterClient())
+        {
+            debugButton.gameObject.SetActive(true);
+        }
+    }
+
+    private void DebugPressed()
+    {
+        GameController.IS_DEBUG = !GameController.IS_DEBUG;
     }
 
     private bool TryCanSetPlayerName()
