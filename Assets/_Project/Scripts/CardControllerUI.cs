@@ -11,11 +11,6 @@ public class CardControllerUI : MonoBehaviour, IPointerClickHandler, IPointerEnt
 
     public Action<CardData> CardClicked;
 
-    private void Awake()
-    {
-        image.enabled = false;
-    }
-
     public void SetCardData(CardData cardData, bool isFaceDown = false)
     {
         image.enabled = true;
@@ -26,7 +21,6 @@ public class CardControllerUI : MonoBehaviour, IPointerClickHandler, IPointerEnt
 
     public void HideCard()
     {
-        image.enabled = false;
         cardData = null;
     }
 

@@ -16,6 +16,7 @@ public class GameController : MonoBehaviourPun
     public static Action GameStarted;
 
     [SerializeField] private Blitz blitz;
+    [SerializeField] private GamePlayerUI myGamePlayerUIPrefab;
     [SerializeField] private GamePlayerUI gamePlayerUIPrefab;
     [SerializeField] private PlayerCountToSpawnPoints[] playerCountToPlayerSlotsSetupMap = new PlayerCountToSpawnPoints[Blitz.MAX_PLAYERS];
     [SerializeField] private Dictionary<int, GamePlayerUI> actorIDToGamePlayerUIMap = new Dictionary<int, GamePlayerUI>();
@@ -183,8 +184,8 @@ public class GameController : MonoBehaviourPun
 
     private GamePlayerUI SpawnGamePlayer(Player player, Transform parentTransform)
     {
-        GamePlayerUI gamePlayerUI = Instantiate(gamePlayerUIPrefab, Vector2.zero, Quaternion.identity, parentTransform);
-        gamePlayerUI.transform.localPosition = Vector2.zero;
+        GamePlayerUI gamePlayerUI = Instantiate(player.IsLocal ? myGamePlayerUIPrefab : gamePlayerUIPrefab, Vector2.zero, Quaternion.identity, parentTransform);
+        gamePlayerUI.transform.localPosition = player.IsLocal ? new Vector2(0, 120) : Vector2.zero;
         gamePlayerUI.Init(player.NickName, player.ActorNumber);
         gamePlayerUI.PlayerCardClicked += OnPlayerCardClicked;
         gamePlayerUI.PlayerKnockClicked += OnPlayerKnockClicked;
@@ -263,7 +264,7 @@ public class GameController : MonoBehaviourPun
     private void FetchedNewCardFromDiscardPile()
     {
         CardData cardData = discardCardController.GetCardData();
-        discardCardController.HideCard();
+        discardCardController.gameObject.SetActive(false);
 
         actorIDToGamePlayerUIMap[currentActorTurn].SetCardInfo(cardData, 
             PhotonNetworkManager.GetLocalPlayer().ActorNumber != currentActorTurn);
@@ -278,6 +279,7 @@ public class GameController : MonoBehaviourPun
             PhotonNetworkManager.GetLocalPlayer().ActorNumber != currentActorTurn);
 
         discardCardController.SetCardData(cardData);
+        discardCardController.gameObject.SetActive(true);
 
         EndTurn();
     }

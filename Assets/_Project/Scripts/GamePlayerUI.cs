@@ -72,17 +72,20 @@ public class GamePlayerUI : MonoBehaviour
     {
         cards.Add(cardData);
         cardControllers[3].SetCardData(cardData, isFaceDown);
+        cardControllers[3].gameObject.SetActive(true);
         CalculatePlayerScore();
     }
 
     public void TakeCard(int cardID, bool isFaceDown = false)
     {
-        for(int i = 0;i < cardControllers.Count;i++)
-        {
-            cardControllers[i].HideCard();
-        }
+        //Remove card
         cards.RemoveAll(card => card.cardId == cardID);
         SetCardsInfo(cards, isFaceDown);
+
+        //Hide Last Card
+        cardControllers[3].HideCard();
+        cardControllers[3].gameObject.SetActive(false);
+
         CalculatePlayerScore();
     }
 
