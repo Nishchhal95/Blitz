@@ -37,6 +37,7 @@ public class GameController : MonoBehaviourPun
 
     private void OnEnable()
     {
+        StartGame();
         deckControllerUI.DeckClicked += OnDeckClicked;
     }
 
