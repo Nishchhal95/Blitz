@@ -9,17 +9,19 @@ public class GameController : MonoBehaviourPun
     private static bool isDebug;
 
     public static int MINIMUM_PLAYERS_TO_START_GAME = 0;
-    public static int MAX_PLAYERS = 6;
     public static bool IS_DEBUG { get { return isDebug; } set { isDebug = value; DebugPressed?.Invoke(); } }
 
     public static event Action DebugPressed;
-    public static Action GameStarted;
+    public static event Action GameStarted;
+
+    [SerializeField] private BlitzGameData gameConfig;
 
     [SerializeField] private Blitz blitz;
     [SerializeField] private GamePlayerUI myGamePlayerUIPrefab;
     [SerializeField] private GamePlayerUI gamePlayerUIPrefab;
     [SerializeField] private PlayerCountToSpawnPoints[] playerCountToPlayerSlotsSetupMap = new PlayerCountToSpawnPoints[Blitz.MAX_PLAYERS];
     [SerializeField] private Dictionary<int, GamePlayerUI> actorIDToGamePlayerUIMap = new Dictionary<int, GamePlayerUI>();
+    [SerializeField] private GameUIController gameUIController;
 
     [SerializeField] private DeckControllerUI deckControllerUI;
     [SerializeField] private CardControllerUI cardPrefab;
@@ -33,11 +35,14 @@ public class GameController : MonoBehaviourPun
     [SerializeField] private int knockedPlayerActorNumber = -1;
     [SerializeField] private int turnEndActorNumber = -1;
 
+    [SerializeField] private int readyPlayerCount = 0;
+
     [SerializeField] private bool gameOver = false;
+
+    private bool IsMyTurn => PhotonNetworkManager.GetLocalPlayer().ActorNumber == currentActorTurn;
 
     private void OnEnable()
     {
-        StartGame();
         deckControllerUI.DeckClicked += OnDeckClicked;
     }
 
@@ -51,10 +56,30 @@ public class GameController : MonoBehaviourPun
         }
     }
 
+    private void Start()
+    {
+        gameConfig = PhotonNetworkManager.Instance.GetCurrentRoomBlitzGameConfig();
+        photonView.RPC("PlayerReady", RpcTarget.All);
+    }
+
+    [PunRPC]
+    private void PlayerReady()
+    {
+        if (PhotonNetworkManager.IsMasterClient())
+        {
+            readyPlayerCount++;
+
+            if (readyPlayerCount == PhotonNetworkManager.GetPlayerCountInCurrentRoom())
+            {
+                StartGame();
+            }
+        }
+    }
+
     public void StartGame()
     {
         int playersInRoom = PhotonNetworkManager.GetPlayerCountInCurrentRoom();
-        if (playersInRoom < MINIMUM_PLAYERS_TO_START_GAME || playersInRoom > MAX_PLAYERS)
+        if (playersInRoom < MINIMUM_PLAYERS_TO_START_GAME || playersInRoom > gameConfig.MaxPlayers)
         {
             return;
         }
@@ -62,20 +87,86 @@ public class GameController : MonoBehaviourPun
         // Lock Room
         PhotonNetworkManager.GetCurrentRoom().IsOpen = false;
 
-        photonView.RPC("StartGameForAll", RpcTarget.All);
-
         // Generate and Shuffle Deck for all players
         int randomSeed = UnityEngine.Random.Range(1, 99999);
-        blitz.GetComponent<PhotonView>().RPC("SetupGame", RpcTarget.All, randomSeed);
+        photonView.RPC("SetupDeck", RpcTarget.All, randomSeed);
 
         //Spawn Players for all players
-        photonView.RPC("SpawnPlayers", RpcTarget.All);
+        photonView.RPC("SetupGame", RpcTarget.All);
     }
 
     [PunRPC]
-    private void StartGameForAll()
+    private void SetupDeck(int seed)
     {
-        if(actorIDToGamePlayerUIMap != null)
+        ResetGame();
+        blitz.SetupDeckWithSeedShuffle(seed);
+    }
+
+    [PunRPC]
+    private void SetupGame()
+    {
+        int playerCount = PhotonNetworkManager.GetPlayerCountInCurrentRoom();
+        // This also gets you a sorted list at which the player joined.
+        List<Player> players = PhotonNetworkManager.GetPlayerListInCurrentRoomSortedByActorNumber();
+        foreach (Player player in players)
+        {
+            Debug.Log($"NickName:{player.NickName}, UserID:{player.UserId}, ActorNumber:{player.ActorNumber}");
+        }
+
+        PlayerCountToSpawnPoints playerCountToSpawnPoints = GetSpawnPointsForNumberOfPlayers(playerCount);
+        if (playerCountToSpawnPoints == null)
+        {
+            Debug.LogError(nameof(playerCountToSpawnPoints) + " is null");
+            return;
+        }
+
+        SpawnPlayers(playerCount, players, playerCountToSpawnPoints);
+        DistributeCards();
+        SetupDeck();
+        SetupDiscardPile();
+        UpdateCurrentTurn();
+
+        GameStarted?.Invoke();
+    }
+
+    private void SpawnPlayers(int playerCount, List<Player> players, PlayerCountToSpawnPoints playerCountToSpawnPoints)
+    {
+        int currentActorID = PhotonNetworkManager.GetLocalPlayer().ActorNumber;
+        for (int i = 0; i < playerCountToSpawnPoints.SpawnPoints.Length; i++)
+        {
+            Player currentPlayer = players[currentActorID - 1];
+            GamePlayerUI gamePlayerUI = SpawnGamePlayer(currentPlayer, playerCountToSpawnPoints.SpawnPoints[i]);
+            currentActorID++;
+            if (currentActorID > playerCount)
+            {
+                currentActorID = 1;
+            }
+        }
+    }
+
+    private PlayerCountToSpawnPoints GetSpawnPointsForNumberOfPlayers(int playerCount)
+    {
+        PlayerCountToSpawnPoints playerCountToSpawnPoints = null;
+        for (int i = 0; i < playerCountToPlayerSlotsSetupMap.Length; i++)
+        {
+            if (playerCountToPlayerSlotsSetupMap[i].Count == playerCount)
+            {
+                playerCountToSpawnPoints = playerCountToPlayerSlotsSetupMap[i];
+                return playerCountToSpawnPoints;
+            }
+        }
+
+        if (playerCountToSpawnPoints == null)
+        {
+            Debug.LogError("Cannot find SpawnPoint array for " + playerCount + " player count");
+        }
+
+        return playerCountToSpawnPoints;
+    }
+
+    private void ResetGame()
+    {
+        if (actorIDToGamePlayerUIMap != null)
         {
             foreach (GamePlayerUI gamePlayer in actorIDToGamePlayerUIMap.Values)
             {
@@ -84,7 +175,7 @@ public class GameController : MonoBehaviourPun
         }
         actorIDToGamePlayerUIMap = new Dictionary<int, GamePlayerUI>();
 
-        if(discardCardController != null)
+        if (discardCardController != null)
         {
             Destroy(discardCardController.gameObject);
         }
@@ -98,54 +189,9 @@ public class GameController : MonoBehaviourPun
         knockedPlayerActorNumber = -1;
         turnEndActorNumber = -1;
 
-        GameUIController.Instance.HideGameOver();
+        readyPlayerCount = 0;
 
-        GameStarted?.Invoke();
-    }
-
-    [PunRPC]
-    private void SpawnPlayers()
-    {
-        int playerCount = PhotonNetworkManager.GetPlayerCountInCurrentRoom();
-        // This also gets you a sorted list at which the player joined.
-        List<Player> players = PhotonNetworkManager.GetPlayerListInCurrentRoomSortedByActorNumber();
-        foreach (Player player in players)
-        {
-            Debug.Log($"NickName:{player.NickName}, UserID:{player.UserId}, ActorNumber:{player.ActorNumber}");
-        }
-
-        PlayerCountToSpawnPoints playerCountToSpawnPoints = null;
-        for (int i = 0; i < playerCountToPlayerSlotsSetupMap.Length; i++)
-        {
-            if (playerCountToPlayerSlotsSetupMap[i].Count == playerCount)
-            {
-                playerCountToSpawnPoints = playerCountToPlayerSlotsSetupMap[i];
-                break;
-            }
-        }
-
-        if(playerCountToSpawnPoints == null)
-        {
-            Debug.LogError("Cannot find SpawnPoint array for " + playerCount + " player count");
-            return;
-        }
-
-        int currentActorID = PhotonNetworkManager.GetLocalPlayer().ActorNumber;
-        for (int i = 0; i < playerCountToSpawnPoints.SpawnPoints.Length; i++)
-        {
-            Player currentPlayer = players[currentActorID - 1];
-            GamePlayerUI gamePlayerUI = SpawnGamePlayer(currentPlayer, playerCountToSpawnPoints.SpawnPoints[i]);
-            currentActorID++;
-            if (currentActorID > playerCount)
-            {
-                currentActorID = 1;
-            }
-        }
-
-        DistributeCards();
-        SetupDeck();
-        SetupDiscardPile();
-        UpdateCurrentTurn();
+        gameUIController.HideGameOver();
     }
 
     private void DistributeCards()
@@ -256,7 +302,7 @@ public class GameController : MonoBehaviourPun
     private void FetchedNewCardFromDeck()
     {
         CardData cardData = blitz.FetchCard();
-        actorIDToGamePlayerUIMap[currentActorTurn].SetCardInfo(cardData, 
+        actorIDToGamePlayerUIMap[currentActorTurn].AddExtraCard(cardData, 
             PhotonNetworkManager.GetLocalPlayer().ActorNumber != currentActorTurn);
         fetchedNewCard = true;
     }
@@ -267,7 +313,7 @@ public class GameController : MonoBehaviourPun
         CardData cardData = discardCardController.GetCardData();
         discardCardController.gameObject.SetActive(false);
 
-        actorIDToGamePlayerUIMap[currentActorTurn].SetCardInfo(cardData, 
+        actorIDToGamePlayerUIMap[currentActorTurn].AddExtraCard(cardData, 
             PhotonNetworkManager.GetLocalPlayer().ActorNumber != currentActorTurn);
         fetchedNewCard = true;
     }
@@ -276,7 +322,7 @@ public class GameController : MonoBehaviourPun
     private void RemoveCardFromPlayer(int cardID)
     {
         CardData cardData = actorIDToGamePlayerUIMap[currentActorTurn].FindCardByID(cardID);
-        actorIDToGamePlayerUIMap[currentActorTurn].TakeCard(cardID, 
+        actorIDToGamePlayerUIMap[currentActorTurn].DiscardCard(cardID, 
             PhotonNetworkManager.GetLocalPlayer().ActorNumber != currentActorTurn);
 
         discardCardController.SetCardData(cardData);
@@ -329,7 +375,7 @@ public class GameController : MonoBehaviourPun
         gameOver = true;
         Debug.Log($"Player {actorIDToGamePlayerUIMap[currentActorTurn].GetName()} got BLITZ!");
         ShowAllPlayerCards();
-        GameUIController.Instance.ShowGameOver($"Player {actorIDToGamePlayerUIMap[currentActorTurn].GetName()} got BLITZ!", PhotonNetworkManager.IsMasterClient());
+        gameUIController.ShowGameOver($"Player {actorIDToGamePlayerUIMap[currentActorTurn].GetName()} got BLITZ!", PhotonNetworkManager.IsMasterClient());
     }
 
     private void HandleKnock()
@@ -363,7 +409,7 @@ public class GameController : MonoBehaviourPun
             $"\n Player {lowestScoreGamePlayer.GetName()} has lowest score of {lowestScoreGamePlayer.GetScore()}!";
         gameOver = true;
         ShowAllPlayerCards();
-        GameUIController.Instance.ShowGameOver(message, PhotonNetworkManager.IsMasterClient());
+        gameUIController.ShowGameOver(message, PhotonNetworkManager.IsMasterClient());
     }
 
     private void ShowAllPlayerCards()
@@ -383,8 +429,6 @@ public class GameController : MonoBehaviourPun
     {
         return actorIDToGamePlayerUIMap[currentActorTurn].GetScore() == 31;
     }
-
-    private bool IsMyTurn => PhotonNetworkManager.GetLocalPlayer().ActorNumber == currentActorTurn;
 }
 
 [Serializable]

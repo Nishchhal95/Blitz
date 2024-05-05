@@ -42,13 +42,11 @@ public class Blitz : MonoBehaviourPun
     public static string CARD_PREFIX = "card";
     public static string CARD_BACK_FACE_NAME = "cardBack_red4";
 
-    public const int MAX_PLAYERS = 6;
-    public const int NUM_OF_CARDS_PER_PLAYER = 3;
-
     private List<CardData> deck = new List<CardData>();
 
-    [PunRPC]
-    public void SetupGame(int seed)
+    public static int MAX_PLAYERS { get; private set; } = 6;
+
+    public void SetupDeckWithSeedShuffle(int seed)
     {
         deck = new List<CardData>();
         GenerateDeck();

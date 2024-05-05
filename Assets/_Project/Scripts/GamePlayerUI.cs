@@ -39,9 +39,10 @@ public class GamePlayerUI : MonoBehaviour
         this.playerName = playerName;
         this.playerActorNumber = playerActorNumber;
         SetPlayerName(playerName);
-        isLocalPlayer = playerActorNumber == PhotonNetworkManager.GetLocalPlayer().ActorNumber;
-        playerScoreTextField.gameObject.SetActive(isLocalPlayer);
 
+        isLocalPlayer = playerActorNumber == PhotonNetworkManager.GetLocalPlayer().ActorNumber;
+
+        playerScoreTextField.gameObject.SetActive(isLocalPlayer);
         knockButton.gameObject.SetActive(isLocalPlayer);
 
         for (int i = 0; i < cardControllers.Count; i++)
@@ -68,7 +69,7 @@ public class GamePlayerUI : MonoBehaviour
         CalculatePlayerScore();
     }
 
-    public void SetCardInfo(CardData cardData, bool isFaceDown = false)
+    public void AddExtraCard(CardData cardData, bool isFaceDown = false)
     {
         cards.Add(cardData);
         cardControllers[3].SetCardData(cardData, isFaceDown);
@@ -76,7 +77,7 @@ public class GamePlayerUI : MonoBehaviour
         CalculatePlayerScore();
     }
 
-    public void TakeCard(int cardID, bool isFaceDown = false)
+    public void DiscardCard(int cardID, bool isFaceDown = false)
     {
         //Remove card
         cards.RemoveAll(card => card.cardId == cardID);
@@ -131,7 +132,7 @@ public class GamePlayerUI : MonoBehaviour
         {
             playerScore = 30.5f;
         }
-        playerScore = Mathf.Max(playerScore, maxSum.Sum);
+        playerScore = Mathf.Max(hasSimilarRank3Cards ? playerScore : 0, maxSum.Sum);
         playerScoreTextField.SetText("" + playerScore);
     }
 

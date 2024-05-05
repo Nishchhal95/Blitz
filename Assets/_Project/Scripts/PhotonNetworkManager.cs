@@ -120,6 +120,14 @@ public class PhotonNetworkManager : MonoBehaviourPunCallbacks
     public static void ForceRequestPhotonRooms() => PhotonNetwork.GetCustomRoomList(TypedLobby.Default, "1 = 1");
     public static Dictionary<string, string> GetRegionsMap() => regionCodeToRegionNameMap;
     public List<RoomInfo> GetRoomList() => rooms.ToList();
+    public BlitzGameData GetCurrentRoomBlitzGameConfig()
+    {
+        string gameConfigJson = (string)PhotonNetwork.CurrentRoom.CustomProperties[GAME_CONFIG_KEY];
+
+        BlitzGameData gameConfig = JsonConvert.DeserializeObject<BlitzGameData>(gameConfigJson);
+
+        return gameConfig;
+    }
 
     //Callbacks
     public override void OnConnectedToMaster()

@@ -4,31 +4,25 @@ using UnityEngine.UI;
 
 public class GameUIController : MonoBehaviour
 {
-    public static GameUIController Instance { get; private set; }
-
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private TextMeshProUGUI gameOverWinLoseMessage;
     [SerializeField] private Button restartButton;
+    [SerializeField] private Button debugButton;
 
     [SerializeField] private GameController gameController;
-
-    private void Awake()
-    {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        DontDestroyOnLoad(gameObject);
-    }
 
     private void OnEnable()
     {
         restartButton.onClick.AddListener(RestartClick);
+        debugButton.onClick.AddListener(DebugPressed);
+        GameController.GameStarted += GameStarted;
     }
 
     private void OnDisable()
     {
         restartButton.onClick.RemoveListener(RestartClick);
+        debugButton.onClick.RemoveListener(DebugPressed);
+        GameController.GameStarted -= GameStarted;
     }
 
     public void ShowGameOver(string gameOverMessage, bool canRestart = false)
@@ -43,8 +37,18 @@ public class GameUIController : MonoBehaviour
         gameOverPanel.SetActive(false);
     }
 
+    private void DebugPressed()
+    {
+        GameController.IS_DEBUG = !GameController.IS_DEBUG;
+    }
+
     private void RestartClick()
     {
         gameController.StartGame();
+    }
+
+    private void GameStarted()
+    {
+        debugButton.gameObject.SetActive(PhotonNetworkManager.IsMasterClient());
     }
 }

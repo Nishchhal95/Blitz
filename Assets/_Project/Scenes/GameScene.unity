@@ -1498,6 +1498,7 @@ MonoBehaviour:
     - {fileID: 1796880478}
     - {fileID: 2018358128}
     - {fileID: 942810743}
+  gameUIController: {fileID: 1640143923}
   deckControllerUI: {fileID: 788792091}
   cardPrefab: {fileID: 5322177901224335829, guid: bf4c0fa7cc021234eae54d1a503984f8, type: 3}
   discardCardController: {fileID: 0}
@@ -4791,7 +4792,7 @@ Canvas:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1640143917}
-  m_Enabled: 0
+  m_Enabled: 1
   serializedVersion: 3
   m_RenderMode: 0
   m_Camera: {fileID: 0}
@@ -4863,6 +4864,7 @@ MonoBehaviour:
   gameOverPanel: {fileID: 492597468}
   gameOverWinLoseMessage: {fileID: 462292388}
   restartButton: {fileID: 522202253}
+  debugButton: {fileID: 1938637405}
   gameController: {fileID: 418822663}
 --- !u!1 &1662002037
 GameObject:
